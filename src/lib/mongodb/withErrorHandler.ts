@@ -11,7 +11,18 @@ export function withErrorHandler<TArgs extends unknown[]>(
   return async (...args: TArgs): Promise<Response> => {
     try {
       await connectDB();
-      return await fn(...args);
+
+      const result = await fn(...args);
+
+      // Ensure Response is always returned
+      if (!result) {
+        return NextResponse.json(
+          { error: "Handler did not return a response" },
+          { status: 500 }
+        );
+      }
+
+      return result;
     } catch (error: unknown) {
       console.error("Server Error:", error);
 

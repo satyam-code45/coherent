@@ -11,6 +11,7 @@
   "dependencies": {
     "@langchain/cerebras": "^1.0.1",
     "@langchain/cohere": "^1.0.2",
+    "@langchain/community": "^1.1.15",
     "@langchain/core": "^1.1.24",
     "@langchain/pinecone": "^1.0.1",
     "class-variance-authority": "^0.7.1",
@@ -23,6 +24,9 @@
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"
   },

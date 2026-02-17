@@ -2,16 +2,124 @@
 
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
+import { MessageBubble } from "./MessgeBubble";
+import ChatInput from "./ChatInput";
+
+export type Message = {
+  role: "user" | "ai";
+  text: string;
+  time?: string;
+};
 
 export default function Chatbox({ userId }: { userId: string }) {
-  const [message, setMessage] = useState([]);
+  const [message, setMessage] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
+  const queueRef = useRef<string[]>([]);
+  const typingRef = useRef(false);
+
+  const typeNext = () => {
+    if (queueRef.current.length === 0) {
+      typingRef.current = false;
+      return;
+    }
+
+    typingRef.current = true;
+    const nextChar = queueRef.current.shift()!;
+
+    setMessage((prev) => {
+      const last = prev[prev.length - 1];
+
+      //append to last assistant message
+      if (last?.role === "ai") {
+        return [...prev.slice(0, -1), { ...last, text: last.text + nextChar }];
+      }
+      return prev;
+    });
+    setTimeout(typeNext, 50);
+  };
+
   //send Message
-  const sendMessage = () => {
-    console.log("");
+  const sendMessage = async () => {
+    const userMessage = input.trim();
+
+    queueRef.current = [];
+
+    setMessage((prev) => [
+      ...prev,
+      { role: "user", text: userMessage },
+      { role: "ai", text: "" }, //placeholder for the stream
+    ]);
+
+    try {
+      const res = await fetch("/api/agent/stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      if (!res.body) return;
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) {
+            continue;
+          }
+
+          //Handles data events
+          if (trimmed.startsWith("data:")) {
+            const payload = trimmed.replace("data:", "").trim();
+            if (!payload) continue;
+
+            const data = JSON.parse(payload);
+
+            //queue valid messages
+            if (data.message !== undefined && data.message !== null) {
+              queueRef.current.push(data.message);
+
+              if (!typingRef.current) {
+                typeNext();
+              }
+            }
+          }
+
+          //Handle event types: end/error
+          else if (trimmed.startsWith("event:")) {
+            const eventType = trimmed.replace("event:", "").trim();
+
+            if (eventType === "end") {
+              console.log("Stream Ended!");
+              reader.cancel(); //stop reading
+            }
+
+            if (eventType === "error") {
+              console.log("Stream error received");
+              reader.cancel();
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Fetch streaming Error: ", (error as Error).message);
+    }
   };
   return (
     <div className="flex h-full flex-col bg-slate-50">
@@ -35,24 +143,24 @@ export default function Chatbox({ userId }: { userId: string }) {
       </header>
 
       {/* MESSAGES */}
-      {/* <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
         {message.map((msg, i) => (
           <MessageBubble key={i} message={msg} />
         ))}
 
-        {true && (
+        {false && (
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" /> Thinking...
           </div>
         )}
 
         <div ref={bottomRef} />
-      </div> */}
+      </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {/* messages */}
 
-        {true && (
+        {false && (
           <div className="space-y-2 text-xs text-slate-400">
             <div className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" /> Thinking...
@@ -69,16 +177,25 @@ export default function Chatbox({ userId }: { userId: string }) {
 
             {/*AI Todo/Plans */}
             <div className="bg-slate-50 rounded p-2">
-                <strong>AI Plans:</strong>
-                <ul className="list-decimal list-inside">
-                    <li>Draft Response structure</li>
-                    <li>Suggest relevant examples</li>
-                    <li>Check for clarity and brevity</li>
-                </ul>
-                </div>
+              <strong>AI Plans:</strong>
+              <ul className="list-decimal list-inside">
+                <li>Draft Response structure</li>
+                <li>Suggest relevant examples</li>
+                <li>Check for clarity and brevity</li>
+              </ul>
+            </div>
           </div>
         )}
       </div>
+
+      {/* INPUT */}
+      <ChatInput
+        input={input}
+        setInput={setInput}
+        sendMessage={sendMessage}
+        loading={loading}
+        userId="123"
+      />
     </div>
   );
 }
