@@ -1,9 +1,10 @@
 "use client";
 
 import { ChevronDown, Loader2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MessageBubble } from "./MessgeBubble";
 import ChatInput from "./ChatInput";
+import AIThinking from "./AIThinking";
 
 export type Message = {
   role: "user" | "ai";
@@ -46,6 +47,7 @@ export default function Chatbox({ userId }: { userId: string }) {
     const userMessage = input.trim();
 
     queueRef.current = [];
+    setInput("");
 
     setMessage((prev) => [
       ...prev,
@@ -54,16 +56,17 @@ export default function Chatbox({ userId }: { userId: string }) {
     ]);
 
     try {
+      setLoading(true);
       const res = await fetch("/api/agent/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({ message: userMessage, userId: userId }),
       });
 
       if (!res.body) return;
-
+      setLoading(false);
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
 
@@ -118,9 +121,15 @@ export default function Chatbox({ userId }: { userId: string }) {
         }
       }
     } catch (error) {
+      setLoading(false);
       console.error("Fetch streaming Error: ", (error as Error).message);
     }
   };
+
+  //auto scroll
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [message, loading]);
   return (
     <div className="flex h-full flex-col bg-slate-50">
       {/* Header */}
@@ -148,44 +157,9 @@ export default function Chatbox({ userId }: { userId: string }) {
           <MessageBubble key={i} message={msg} />
         ))}
 
-        {false && (
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <Loader2 className="h-4 w-4 animate-spin" /> Thinking...
-          </div>
-        )}
+        {loading && <AIThinking />}
 
-        <div ref={bottomRef} />
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-        {/* messages */}
-
-        {false && (
-          <div className="space-y-2 text-xs text-slate-400">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" /> Thinking...
-            </div>
-
-            {/* AI Thoughts */}
-            <div className="bg-slate-100 rounded p-2">
-              <strong>AI Thoughts:</strong>
-              <ul className="list-disc list-inside">
-                <li>Analyze the last user input</li>
-                <li>Consider context from the previous messages</li>
-              </ul>
-            </div>
-
-            {/*AI Todo/Plans */}
-            <div className="bg-slate-50 rounded p-2">
-              <strong>AI Plans:</strong>
-              <ul className="list-decimal list-inside">
-                <li>Draft Response structure</li>
-                <li>Suggest relevant examples</li>
-                <li>Check for clarity and brevity</li>
-              </ul>
-            </div>
-          </div>
-        )}
+        <div ref={bottomRef} className="mb-10" />
       </div>
 
       {/* INPUT */}

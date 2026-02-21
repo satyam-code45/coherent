@@ -1,57 +1,80 @@
 import { withErrorHandler } from "@/lib/mongodb/withErrorHandler";
-import { ChatFireworks } from "@langchain/community/chat_models/fireworks";
-import { HumanMessage } from "@langchain/core/messages";
 import { ChatCerebras } from "@langchain/cerebras";
-import { createAgent, tool } from "langchain";
+import { createAgent } from "langchain";
 import { NextResponse } from "next/server";
+import { writeToChatHistoryTool } from "@/lib/tools/ChatHistoryTools";
 
 export const POST = withErrorHandler(async (req: Request) => {
   try {
+    const { message, userId } = await req.json();
+
+    if (!message) {
+      return NextResponse.json(
+        { ok: false, error: "Message is required" },
+        { status: 400 }
+      );
+    }
+
     const model = new ChatCerebras({
       model: "llama-3.1-8b",
       temperature: 0,
       maxTokens: undefined,
-      // maxRetries:2,
       apiKey: process.env.CEREBRAS_API_KEY,
     });
 
     const agent = createAgent({
       model,
-      // tools: [searchTool]
     });
 
-    const { message } = await req.json();
-    if (!message) {
-      return NextResponse.json(
-        { ok: false, error: "Message query param is required" },
-        { status: 400 },
-      );
-    }
+    // Save user message immediately
+    await writeToChatHistoryTool.invoke({
+      messages: [{ role: "user", content: message, userId }],
+    });
 
     const encoder = new TextEncoder();
 
     const sse = (event: string, data: unknown) =>
       encoder.encode(`${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
+    let streamingText = "";
+
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          for await (const chunk of await agent.stream(
+          const agentStream = await agent.stream(
             { messages: [{ role: "user", content: message }] },
-            { streamMode: "messages" },
-          )) {
+            { streamMode: "messages" }
+          );
+
+          for await (const chunk of agentStream) {
             const msg = chunk[0];
 
-            if (msg?.type != "ai") continue;
-            controller.enqueue(sse("message", { message: msg?.content }));
+            if (msg?.type !== "ai") continue;
+
+            streamingText += msg.content ?? "";
+
+            controller.enqueue(
+              sse("message", { message: msg.content })
+            );
           }
-          setTimeout(() => {
-            controller.enqueue(sse("end", { ok: true }));
-            controller.close();
-          }, 1000);
+
+          // Save final AI message AFTER streaming completes
+          if (streamingText.trim().length > 0) {
+            await writeToChatHistoryTool.invoke({
+              messages: [{ role: "ai", content: streamingText, userId }],
+            });
+          }
+
+          controller.enqueue(sse("end", { ok: true }));
+          controller.close();
+
         } catch (error) {
-          console.log("Error agent/streams: ", (error as Error)?.message);
-          controller.enqueue(sse("error", { error: (error as Error).message }));
+          console.error("Streaming error:", (error as Error)?.message);
+
+          controller.enqueue(
+            sse("error", { error: (error as Error).message })
+          );
+
           controller.close();
         }
       },
@@ -64,21 +87,17 @@ export const POST = withErrorHandler(async (req: Request) => {
         Connection: "keep-alive",
       },
     });
-  } catch (err: unknown) {
-    let message = "Internal Server Error";
 
-    if (err instanceof Error) {
-      message = err.message;
-    }
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : "Internal Server Error";
+
     return new Response(
-      JSON.stringify({
-        ok: false,
-        error: message,
-      }),
+      JSON.stringify({ ok: false, error: message }),
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
   }
 });
