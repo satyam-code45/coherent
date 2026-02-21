@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import { User } from "@/models/userSchema";
 import { connectDB } from "@/lib/mongodb/mongodb";
 

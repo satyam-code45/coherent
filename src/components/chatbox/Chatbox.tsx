@@ -1,10 +1,17 @@
 "use client";
 
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { MessageBubble } from "./MessgeBubble";
 import ChatInput from "./ChatInput";
 import AIThinking from "./AIThinking";
+import { useDispatch, useSelector, useStore } from "react-redux";
+import type { AppDispatch, RootState } from "@/store";
+import {
+  addUserAndAiPlaceholder,
+  appendToLastAiMessage,
+  getChatHistory,
+} from "@/store/chatSlice";
 
 export type Message = {
   role: "user" | "ai";
@@ -13,7 +20,15 @@ export type Message = {
 };
 
 export default function Chatbox({ userId }: { userId: string }) {
-  const [message, setMessage] = useState<Message[]>([]);
+  const dispatch = useDispatch<AppDispatch>();
+  const { messages, error } = useSelector((state: RootState) => state.chat);
+
+  useEffect(() => {
+    if (userId) {
+      dispatch(getChatHistory(userId));
+    }
+  }, [userId, dispatch]);
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -30,15 +45,8 @@ export default function Chatbox({ userId }: { userId: string }) {
     typingRef.current = true;
     const nextChar = queueRef.current.shift()!;
 
-    setMessage((prev) => {
-      const last = prev[prev.length - 1];
+    dispatch(appendToLastAiMessage(nextChar));
 
-      //append to last assistant message
-      if (last?.role === "ai") {
-        return [...prev.slice(0, -1), { ...last, text: last.text + nextChar }];
-      }
-      return prev;
-    });
     setTimeout(typeNext, 50);
   };
 
@@ -49,11 +57,12 @@ export default function Chatbox({ userId }: { userId: string }) {
     queueRef.current = [];
     setInput("");
 
-    setMessage((prev) => [
-      ...prev,
-      { role: "user", text: userMessage },
-      { role: "ai", text: "" }, //placeholder for the stream
-    ]);
+    dispatch(
+      addUserAndAiPlaceholder({
+        userId,
+        content: userMessage,
+      }),
+    );
 
     try {
       setLoading(true);
@@ -129,7 +138,7 @@ export default function Chatbox({ userId }: { userId: string }) {
   //auto scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [message, loading]);
+  }, [messages, loading]);
   return (
     <div className="flex h-full flex-col bg-slate-50">
       {/* Header */}
@@ -153,7 +162,7 @@ export default function Chatbox({ userId }: { userId: string }) {
 
       {/* MESSAGES */}
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
-        {message.map((msg, i) => (
+        {(messages || []).map((msg, i) => (
           <MessageBubble key={i} message={msg} />
         ))}
 
