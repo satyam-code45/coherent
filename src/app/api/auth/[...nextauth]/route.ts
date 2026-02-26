@@ -1,9 +1,8 @@
-import { withErrorHandler } from "@/lib/mongodb/withErrorHandler";
 import { UserService } from "@/services/userService";
-import NextAuth from "next-auth";
+import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
-export const authOptions = {
+export const authOptions: NextAuthOptions = {
   // Configure one or more authentication providers
   providers: [
     GoogleProvider({
@@ -24,26 +23,24 @@ export const authOptions = {
   ],
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async signIn({
-      user,
-      account,
-    }: {
-      user: { id: string; name: string; email: string; image: string };
-      account: { access_token?: string; refresh_token?: string } | null;
-    }) {
+    async signIn({ user, account }) {
       try {
-        const userData = { ...user };
         const access_token = account?.access_token;
         const refresh_token = account?.refresh_token;
 
+        if (!user.id || !user.name || !user.email || !user.image) return false;
+
         const userService = UserService.getInstance();
         await userService.createUser({
-          ...userData,
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
           access_token,
           refresh_token,
         });
       } catch (error) {
-        console.error('Error creating user:', error);
+        console.error("Error creating user:", error);
       }
       return true;
     },
@@ -61,81 +58,54 @@ export const authOptions = {
       return baseUrl;
     },
     //everytime session is checked
-    async session({session, token}: {
-      session: {
-        user: {
-          id?: string;
-          name?: string;
-          email?: string;
-          image?: string;
-          access_token?: string;
-          refresh_token?: string;
-        };
-      };
-      token: {
-        userId?: string;
-        access_token?: string;
-        refresh_token?: string;
-      };
-    }){
-        if(token?.userId){
-            session.user.id = token.userId;
+    async session({ session, token }) {
+      if (session.user) {
+        if (token?.userId) {
+          (session.user as Record<string, unknown>).id = token.userId;
         }
 
-        if(token?.access_token){
-            session.user.access_token = token.access_token;
+        if (token?.access_token) {
+          (session.user as Record<string, unknown>).access_token =
+            token.access_token;
         }
 
-        if(token?.refresh_token){
-            session.user.refresh_token = token.refresh_token;
+        if (token?.refresh_token) {
+          (session.user as Record<string, unknown>).refresh_token =
+            token.refresh_token;
         }
-        return session;
+      }
+      return session;
     },
 
-    async jwt({token, user, account}: {
-      token: {
-        userId?: string;
-        access_token?: string;
-        refresh_token?: string;
-      };
-      user?: {
-        id: string;
-        name: string;
-        email: string;
-        image: string;
-      };
-      account?: {
-        access_token?: string;
-        refresh_token?: string;
-      } | null;
-    }){
-        if(account){
-            if(account.access_token){
-                token.access_token = account.access_token;
-            }
-
-            if (account.refresh_token) {
-                token.refresh_token = account.refresh_token;
-            }
+    async jwt({ token, user, account }) {
+      if (account) {
+        if (account.access_token) {
+          token.access_token = account.access_token;
         }
 
-        if(user){
-            try{
-                const userService = UserService.getInstance();
-
-                const dbUser = await userService.findByEmail(user.email);
-
-                if(dbUser){
-                    token.userId = dbUser._id.toString();
-                }
-            }catch (error){
-                console.log((error as Error)?.message);
-                
-            }
+        if (account.refresh_token) {
+          token.refresh_token = account.refresh_token;
         }
+      }
 
-        return token;
-    }
+      if (user) {
+        try {
+          const userService = UserService.getInstance();
+
+          const dbUser = user.email
+            ? await userService.findByEmail(user.email)
+            : null;
+
+          if (dbUser) {
+            token.userId = dbUser._id.toString();
+          }
+        } catch (error) {
+          console.log((error as Error)?.message);
+        }
+      }
+
+      return token;
+    },
   },
 };
 

@@ -1,17 +1,18 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, PanelRightClose } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { MessageBubble } from "./MessgeBubble";
 import ChatInput from "./ChatInput";
 import AIThinking from "./AIThinking";
-import { useDispatch, useSelector, useStore } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch, RootState } from "@/store";
 import {
   addUserAndAiPlaceholder,
   appendToLastAiMessage,
   getChatHistory,
 } from "@/store/chatSlice";
+import { toggleChat } from "@/store/uiSlice";
 
 export type Message = {
   role: "user" | "ai";
@@ -144,20 +145,18 @@ export default function Chatbox({ userId }: { userId: string }) {
       {/* Header */}
       <header className="flex items-center justify-between border-b bg-white px-5 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500 text-xs"></div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold text-slate-900">
-              TalkPDF Assistant
-            </span>
-            <span className="text-[11px] text-slate-500">
-              Product Requirements Doc.pdf
-            </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => dispatch(toggleChat())}
+              className="pt-1 flex cursor-pointer hover:bg-slate-100 hover:p-1 p-1 gap-1 rounded-sm"
+            >
+              <PanelRightClose size={18} />
+            </button>
+            <div>
+              <span className="font-semibold">AI Chat</span>
+            </div>
           </div>
         </div>
-
-        <button className="flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] text-slate-500">
-          Devon Lane <ChevronDown className="h-3 w-3" />
-        </button>
       </header>
 
       {/* MESSAGES */}

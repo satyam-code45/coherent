@@ -128,5 +128,15 @@
     "role": "ai",
     "userId": "69930401d6924821257ab431",
     "content": "Hello. How can I assist you today?"
+  },
+  {
+    "role": "user",
+    "userId": "69930401d6924821257ab431",
+    "content": "hello"
+  },
+  {
+    "role": "ai",
+    "userId": "69930401d6924821257ab431",
+    "content": "Hello. How can I assist you today?"
   }
 ]

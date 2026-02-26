@@ -1,4 +1,4 @@
-type HttpVerb = "GET" | "PUT" | "POST" | "DELETE";
+type HttpVerb = "GET" | "PUT" | "POST" | "PATCH" | "DELETE";
 
 export function makeHttpReq<T>(verb: HttpVerb, endpoint: string, input?: T) {
   return new Promise(async (resolve, reject) => {
