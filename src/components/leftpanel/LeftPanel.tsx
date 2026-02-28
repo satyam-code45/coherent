@@ -26,6 +26,7 @@ import {
 } from "@/store/projectSlice";
 import { ProjectModal } from "../project/ProjectModal";
 import { ProjectSection } from "./ProjectSeciton";
+import { SearchProjectModal } from "./SearchProjectModal";
 
 export type SourceType = "Article" | "Document";
 
@@ -75,6 +76,7 @@ export default function LeftPanel() {
   );
   const [menuOpen, setMenuOpen] = useState(true);
   const [contentOpen, setContentOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     dispatch(fetchProjects({ page: 1, search: "" }));
@@ -193,6 +195,11 @@ export default function LeftPanel() {
 
           <nav className="space-y-1 px-2 py-3 text-sm">
             <MenuItem icon={<Plus size={16} />} label="New" />
+            <MenuItem
+              icon={<Search size={16} />}
+              label="Search projects"
+              onClick={() => setSearchOpen(true)}
+            />
             <MenuItem
               icon={<FileText size={16} />}
               label="Documents"
@@ -315,6 +322,12 @@ export default function LeftPanel() {
           )}
         </div>
       </aside>
+
+      <SearchProjectModal
+        key={String(searchOpen)}
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
     </div>
   );
 }

@@ -13,8 +13,10 @@ import {
 
 export const fetchProjects = createAsyncThunk(
   "projects/fetchProjects",
-  async ({ page = 1, search = "" }: { page: number; search: string }) =>
-    getProjects(page, search),
+  async (
+    { page = 1, search = "" }: { page: number; search: string },
+    { signal },
+  ) => getProjects(page, search, signal),
 );
 
 export const renameProject = createAsyncThunk(

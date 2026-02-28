@@ -51,7 +51,7 @@ export function BaseModal({
           </DialogHeader>
         )}
 
-        <div className="py-4 overflow-auto overflow-y-auto">{children}</div>
+        <div className="py-4 overflow-y-auto overflow-x-hidden">{children}</div>
       </DialogContent>
     </Dialog>
   );

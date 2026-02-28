@@ -20,11 +20,14 @@ export type ProjectServerData = {
 
 export async function getProjects(
   page = 1,
-  search: string = " ",
+  search: string = "",
+  signal?: AbortSignal,
 ): Promise<ProjectServerData> {
   const data = (await makeHttpReq(
     "GET",
-    `projects?page=${page}&search=${search}`,
+    `projects?page=${page}&search=${encodeURIComponent(search)}`,
+    undefined,
+    { signal },
   )) as ProjectServerData;
 
   return data;

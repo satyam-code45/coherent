@@ -1,6 +1,15 @@
 type HttpVerb = "GET" | "PUT" | "POST" | "PATCH" | "DELETE";
 
-export function makeHttpReq<T>(verb: HttpVerb, endpoint: string, input?: T) {
+interface MakeHttpReqOptions {
+  signal?: AbortSignal;
+}
+
+export function makeHttpReq<T>(
+  verb: HttpVerb,
+  endpoint: string,
+  input?: T,
+  options?: MakeHttpReqOptions,
+) {
   return new Promise(async (resolve, reject) => {
     try {
       const res = await fetch(
@@ -12,6 +21,7 @@ export function makeHttpReq<T>(verb: HttpVerb, endpoint: string, input?: T) {
           },
           body: JSON.stringify(input),
           method: verb,
+          signal: options?.signal,
         },
       );
 
